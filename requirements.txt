@@ -4,3 +4,5 @@
 
 azure-functions
 azure-functions-durable
+azure-ai-translation-document
+azure-core
