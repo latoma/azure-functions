@@ -2,7 +2,6 @@ import os
 import logging
 import azure.functions as func
 import azure.durable_functions as df
-import azurefunctions.extensions.bindings.blob as blob
 from azure.ai.translation.document import (
     DocumentTranslationClient,
     DocumentTranslationInput,
@@ -13,13 +12,10 @@ from azure.core.credentials import AzureKeyCredential
 app = df.DFApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 
-# Blob trigger that starts the translation orchestration
-@app.blob_trigger(arg_name="source_blob_client",
-                  path="unprocessed-pdf/{name}",
-                  connection="PDFProcessorSTORAGE",
-                  source=func.BlobSource.EVENT_GRID)
+# Event Grid trigger that processes blob upload events
+@app.event_grid_trigger(arg_name="azdEvent")
 @app.durable_client_input(client_name="client")
-async def process_blob_upload(source_blob_client: blob.BlobClient, client) -> None:
+async def process_blob_upload(azdEvent: func.EventGridEvent, client):
     """
     Process blob upload event from Event Grid.
 
@@ -27,14 +23,17 @@ async def process_blob_upload(source_blob_client: blob.BlobClient, client) -> No
     It starts the translation orchestrator to translate the PDF into target languages.
     """
 
-    blob_properties = source_blob_client.get_blob_properties()
-    blob_name = blob_properties.name
-    file_size = blob_properties.size
+    # Extract event data
+    event_data = azdEvent.get_json()
+    subject = azdEvent.subject
 
-    logging.info(f'Python Blob Trigger (using Event Grid) processed blob\n Name: {blob_name} \n Size: {file_size} bytes')
+    # Extract blob name from subject: /blobServices/default/containers/unprocessed-pdf/blobs/{name}
+    blob_name = subject.split('/')[-1]
 
-    # Construct the blob URL for the translation service
-    source_blob_url = source_blob_client.url
+    # Extract blob URL from event data
+    source_blob_url = event_data.get('url', '')
+
+    logging.info(f'Python Event Grid Trigger processed blob\n Name: {blob_name}')
 
     # Get translation configuration from environment variables
     source_lang = os.environ.get("SOURCE_LANG", "fi")
@@ -107,21 +106,27 @@ def translate_pdf_activity(payload: dict):
     endpoint = os.environ["DOCUMENT_TRANSLATOR_ENDPOINT"]
     key = os.environ["TRANSLATOR_KEY"]
 
-    # Parse storage account URL from the source blob URL
-    # Example: https://hazardhuntdevstorage.blob.core.windows.net/unprocessed-pdf/file.pdf
+    # Parse storage account URL to extract container and directory structure
+    # Example: https://hazardhuntdevstorage.blob.core.windows.net/pdfs/discussion/20260130_185154/Telinekataja-safety-observation-2026-01-30.pdf
     url_parts = source_blob_url.split("/")
     storage_base_url = f"{url_parts[0]}//{url_parts[2]}"  # https://accountname.blob.core.windows.net
-    target_container_url = f"{storage_base_url}/processed-pdf"
+
+    # Extract container and path (everything after storage account)
+    # url_parts[3:] = ['pdfs', 'discussion', '20260130_185154', 'Telinekataja-safety-observation-2026-01-30.pdf']
+    blob_path_parts = url_parts[3:]
+
+    # Get directory path (all but the filename) and filename
+    directory_path = "/".join(blob_path_parts[:-1])  # pdfs/discussion/20260130_185154
 
     client = DocumentTranslationClient(
         endpoint,
         AzureKeyCredential(key)
     )
 
-    # Flat output structure: processed-pdf/{lang}_{filename}.pdf
+    # Store translated PDFs in translations subfolder: pdfs/discussion/{timestamp}/translations/{lang}_{filename}.pdf
     targets = [
         TranslationTarget(
-            target_url=f"{target_container_url}/{lang}_{blob_name}",
+            target_url=f"{storage_base_url}/{directory_path}/translations/{lang}_{blob_name}",
             language=lang
         )
         for lang in langs
