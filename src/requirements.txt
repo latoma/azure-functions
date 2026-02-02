@@ -1,0 +1,11 @@
+# Azure Functions Worker
+azure-functions>=1.23.0
+
+# Azure SDK packages for blob storage
+azurefunctions-extensions-bindings-blob>=1.1.1
+
+# Durable Functions
+azure-functions-durable>=1.2.9
+
+# Azure AI Document Translation
+azure-ai-translation-document>=1.0.0
