@@ -1,5 +1,6 @@
 import os
 import logging
+import requests
 import azure.functions as func
 import azure.durable_functions as df
 from azure.ai.translation.document import (
@@ -92,6 +93,11 @@ def translate_pdf_orchestrator(context):
         input_data
     )
 
+    yield context.call_activity(
+        "notify_backend_activity",
+        result
+    )
+
     return result
 
 
@@ -172,3 +178,21 @@ def translate_pdf_activity(payload: dict):
         "status": poller.status(),
         "documents": documents
     }
+
+@app.activity_trigger(input_name="payload")
+def notify_backend_activity(payload):
+
+    discussion_id = payload.get("discussion_id")
+
+    response = requests.patch(
+        f"{os.environ['BACKEND_URL']}/add-discussion-pdf-translations/{discussion_id}/",
+        json={
+            "blob_names": payload["blob_names"],
+        },
+        headers={
+            "Authorization": f"Bearer {os.environ['BACKEND_API_KEY']}"
+        },
+        timeout=10
+    )
+
+    response.raise_for_status()
