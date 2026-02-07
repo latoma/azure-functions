@@ -12,44 +12,43 @@ from azure.core.credentials import AzureKeyCredential
 app = df.DFApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 
-# Event Grid trigger that processes blob upload events
-@app.event_grid_trigger(arg_name="azdEvent")
+@app.route(route="translate-pdf", methods=["POST"])
 @app.durable_client_input(client_name="client")
-async def process_blob_upload(azdEvent: func.EventGridEvent, client):
-    """
-    Process blob upload event from Event Grid.
+async def translate_pdf_http(req: func.HttpRequest, client):
+    try:
+        body = req.get_json()
+    except ValueError:
+        return func.HttpResponse(
+            "Invalid JSON body",
+            status_code=400,
+        )
 
-    This function triggers when a new blob is created in the unprocessed-pdf container.
-    It starts the translation orchestrator to translate the PDF into target languages.
-    """
+    required_fields = ["source_blob_url", "langs"]
+    missing = [f for f in required_fields if f not in body]
 
-    # Extract event data
-    event_data = azdEvent.get_json()
-    subject = azdEvent.subject
+    if missing:
+        return func.HttpResponse(
+            f"Missing required fields: {missing}",
+            status_code=400,
+        )
 
-    # Extract blob name from subject: /blobServices/default/containers/unprocessed-pdf/blobs/{name}
-    blob_name = subject.split('/')[-1]
-
-    # Extract blob URL from event data
-    source_blob_url = event_data.get('url', '')
-
-    logging.info(f'Python Event Grid Trigger processed blob\n Name: {blob_name}')
-
-    # Get translation configuration from environment variables
-    source_lang = os.environ.get("SOURCE_LANG", "fi")
-    target_langs = os.environ.get("TARGET_LANGS", "en,sv").split(",")
-
-    # Prepare payload for orchestrator
     payload = {
-        "source_blob_url": source_blob_url,
-        "source_lang": source_lang,
-        "langs": target_langs,
-        "blob_name": blob_name
+        "source_blob_url": body["source_blob_url"],
+        "source_lang": body.get("source_lang", "fi"),
+        "langs": body["langs"],
+        "blob_name": body.get(
+            "blob_name",
+            body["source_blob_url"].split("/")[-1],
+        ),
     }
 
-    # Start the translation orchestrator
-    instance_id = await client.start_new("translate_pdf_orchestrator", None, payload)
-    logging.info(f'Started translation orchestration with instance ID: {instance_id}')
+    instance_id = await client.start_new(
+        "translate_pdf_orchestrator",
+        None,
+        payload,
+    )
+
+    return client.create_check_status_response(req, instance_id)
 
 
 # HTTP endpoint to manually start translation or check status
