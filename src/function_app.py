@@ -1,5 +1,6 @@
 import os
 import logging
+import requests
 import azure.functions as func
 import azure.durable_functions as df
 from azure.ai.translation.document import (
@@ -15,6 +16,13 @@ app = df.DFApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 @app.route(route="translate-pdf", methods=["POST"])
 @app.durable_client_input(client_name="client")
 async def translate_pdf_http(req: func.HttpRequest, client):
+
+    auth_header = req.headers.get("Authorization")
+    expected_token = os.environ["BACKEND_API_KEY"]
+
+    if auth_header != f"Bearer {expected_token}":
+        return func.HttpResponse("Unauthorized", status_code=401)
+
     try:
         body = req.get_json()
     except ValueError:
@@ -89,6 +97,11 @@ def translate_pdf_orchestrator(context):
     result = yield context.call_activity(
         "translate_pdf_activity",
         input_data
+    )
+
+    yield context.call_activity(
+        "notify_backend_activity",
+        result
     )
 
     return result
@@ -171,3 +184,21 @@ def translate_pdf_activity(payload: dict):
         "status": poller.status(),
         "documents": documents
     }
+
+@app.activity_trigger(input_name="payload")
+def notify_backend_activity(payload):
+
+    pdf_attachment_id = payload.get("pdf_attachment_id")
+
+    response = requests.patch(
+        f"{os.environ['BACKEND_URL']}/patch-pdf-translations/{pdf_attachment_id}/",
+        json={
+            "blob_names": payload["blob_names"],
+        },
+        headers={
+            "Authorization": f"Bearer {os.environ['BACKEND_API_KEY']}"
+        },
+        timeout=10
+    )
+    
+    response.raise_for_status()
