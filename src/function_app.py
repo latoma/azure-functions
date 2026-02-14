@@ -31,7 +31,7 @@ async def translate_pdf_http(req: func.HttpRequest, client):
             status_code=400,
         )
 
-    required_fields = ["source_blob_url", "langs"]
+    required_fields = ["source_blob_url", "langs", "pdf_attachment_id"]
     missing = [f for f in required_fields if f not in body]
 
     if missing:
@@ -44,6 +44,7 @@ async def translate_pdf_http(req: func.HttpRequest, client):
         "source_blob_url": body["source_blob_url"],
         "source_lang": body.get("source_lang", "fi"),
         "langs": body["langs"],
+        "pdf_attachment_id": body["pdf_attachment_id"],
         "blob_name": body.get(
             "blob_name",
             body["source_blob_url"].split("/")[-1],
@@ -160,17 +161,24 @@ def translate_pdf_activity(payload: dict):
     result = poller.result()
 
     documents = []
+    blob_names = {}
 
     for doc in result:
         if doc.status == "Succeeded":
+            translated_url = doc.translated_document_url
+            language = doc.translated_to[:2]
+
+            translated_blob_name = translated_url.split("/")[-1]
+            blob_names[language] = translated_blob_name
+
             documents.append({
                 "id": doc.id,
-                "language": doc.translated_to[:2],
+                "language": language,
                 "status": doc.status,
                 "source_url": doc.source_document_url,
-                "translated_url": doc.translated_document_url,
+                "translated_url": translated_url,
             })
-            logging.info(f'Translation succeeded: {doc.translated_document_url}')
+            logging.info(f'Translation succeeded: {translated_url}')
         else:
             documents.append({
                 "id": doc.id,
@@ -182,7 +190,9 @@ def translate_pdf_activity(payload: dict):
 
     return {
         "status": poller.status(),
-        "documents": documents
+        "documents": documents,
+        "blob_names": blob_names,
+        "pdf_attachment_id": payload["pdf_attachment_id"],
     }
 
 @app.activity_trigger(input_name="payload")
@@ -190,15 +200,14 @@ def notify_backend_activity(payload):
 
     pdf_attachment_id = payload.get("pdf_attachment_id")
 
-    response = requests.patch(
-        f"{os.environ['BACKEND_URL']}/patch-pdf-translations/{pdf_attachment_id}/",
-        json={
-            "blob_names": payload["blob_names"],
-        },
-        headers={
-            "Authorization": f"Bearer {os.environ['BACKEND_API_KEY']}"
-        },
-        timeout=10
-    )
-    
-    response.raise_for_status()
+    try:
+        response = requests.patch(
+            f"{os.environ['BACKEND_URL']}/patch-pdf-translations/{pdf_attachment_id}/",
+            json={"blob_names": payload["blob_names"]},
+            headers={"Authorization": f"Bearer {os.environ['BACKEND_API_KEY']}"},
+            timeout=10
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logging.error(f"Failed to notify backend for attachment {pdf_attachment_id}: {e}")
+
