@@ -168,7 +168,9 @@ def translate_pdf_activity(payload: dict):
             translated_url = doc.translated_document_url
             language = doc.translated_to[:2]
 
-            translated_blob_name = translated_url.split("/")[-1]
+            relative_path_parts = blob_path_parts[1:-1]
+            clean_directory_path = "/".join(relative_path_parts)
+            translated_blob_name = f"{clean_directory_path}/translations/{language}_{blob_name}"
             blob_names[language] = translated_blob_name
 
             documents.append({
@@ -179,6 +181,7 @@ def translate_pdf_activity(payload: dict):
                 "translated_url": translated_url,
             })
             logging.info(f'Translation succeeded: {translated_url}')
+
         else:
             documents.append({
                 "id": doc.id,
