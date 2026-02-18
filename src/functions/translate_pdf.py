@@ -69,17 +69,49 @@ def register(app):
                 f"Starting PDF translation orchestration for: {input_data.get('blob_name')}"
             )
 
-        result = yield context.call_activity(
-            "translate_pdf_activity",
-            input_data,
-        )
+        langs = input_data.get("langs", [])
+
+        if not langs:
+            return {
+                "documents": [],
+                "blob_names": {},
+                "pdf_attachment_id": input_data["pdf_attachment_id"],
+            }
+
+        chunk_size = 10
+
+        lang_chunks = [
+            langs[i:i + chunk_size]
+            for i in range(0, len(langs), chunk_size)
+        ]
+
+        all_documents = []
+        all_blob_names = {}
+
+        for chunk in lang_chunks:
+            chunk_payload = dict(input_data)
+            chunk_payload["langs"] = chunk
+
+            result = yield context.call_activity(
+                "translate_pdf_activity",
+                chunk_payload,
+            )
+
+            all_documents.extend(result.get("documents", []))
+            all_blob_names.update(result.get("blob_names", {}))
+
+        final_result = {
+            "documents": all_documents,
+            "blob_names": all_blob_names,
+            "pdf_attachment_id": input_data["pdf_attachment_id"],
+        }
 
         yield context.call_activity(
             "notify_backend_activity",
-            result,
+            final_result,
         )
 
-        return result
+        return final_result
 
     # --- Activities ---
 
