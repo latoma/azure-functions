@@ -145,7 +145,7 @@ def register(app):
 
         try:
             response = requests.patch(
-                f"{os.environ['BACKEND_URL']}/patch-pdf-translations/{pdf_attachment_id}/",
+                f"{os.environ['BACKEND_URL']}api/functions/patch-pdf-translations/{pdf_attachment_id}/",
                 json={"blob_names": payload["blob_names"]},
                 headers={"Authorization": f"Bearer {os.environ['BACKEND_API_KEY']}"},
                 timeout=10,

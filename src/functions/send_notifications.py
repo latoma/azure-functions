@@ -2,28 +2,21 @@
 
 Queue payload shape:
 {
-  "notification_id": 42
+    "notification_id": 42
 }
 
-The notification row's `data` JSON field drives targeting:
-  target_type        ALL | ACCOUNT | FILTER
-  target_filters     {"account_id": 1}
-  title_translations {"fi": "...", "en": "..."}
-  body_translations  {"fi": "...", "en": "..."}
-
-Falls back to the notification's `title`/`body` columns when translations
-are absent.
+Uses Django API endpoints for data access and status updates:
+- GET /api/notifications/{id}/
+- PATCH /api/notifications/{id}/
+- GET /api/notifications/{id}/target-devices/
 """
 
 import json
 import logging
 import os
-from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 import azure.functions as func
-import psycopg2
-import psycopg2.extras
 import requests
 
 
@@ -31,8 +24,62 @@ EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 EXPO_BATCH_SIZE = 100
 
 
-def _db_conn():
-    return psycopg2.connect(os.environ["AZURE_POSTGRESQL_CONNECTIONSTRING"])
+def _backend_url(path: str) -> str:
+    base_url = os.environ["BACKEND_URL"].rstrip("/")
+    return f"{base_url}/{path.lstrip('/')}"
+
+
+def _backend_headers() -> Dict[str, str]:
+    return {
+        "Authorization": f"Bearer {os.environ['BACKEND_API_KEY']}",
+        "Content-Type": "application/json",
+    }
+
+
+def _api_get_notification(notification_id: int) -> Optional[Dict]:
+    response = requests.get(
+        _backend_url(f"api/notifications/{notification_id}/"),
+        headers=_backend_headers(),
+        timeout=10,
+    )
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    return response.json()
+
+
+def _api_patch_notification(notification_id: int, payload: Dict) -> None:
+    response = requests.patch(
+        _backend_url(f"api/notifications/{notification_id}/"),
+        json=payload,
+        headers=_backend_headers(),
+        timeout=10,
+    )
+    response.raise_for_status()
+
+
+def _api_get_target_devices(notification_id: int) -> List[Dict]:
+    response = requests.get(
+        _backend_url(f"api/notifications/{notification_id}/target-devices/"),
+        headers=_backend_headers(),
+        timeout=15,
+    )
+    response.raise_for_status()
+
+    payload = response.json()
+    if isinstance(payload, list):
+        return payload
+
+    if isinstance(payload, dict):
+        results = payload.get("results")
+        if isinstance(results, list):
+            return results
+
+    logging.warning(
+        "Unexpected target-devices response shape for notification %s",
+        notification_id,
+    )
+    return []
 
 
 
@@ -118,7 +165,7 @@ def _send_expo_batch(tokens: List[str], title: str, body: str) -> Tuple[int, int
 def register(app):
     @app.service_bus_queue_trigger(
         arg_name="msg",
-        queue_name="%NOTIFICATION_QUEUE_NAME%",
+        queue_name="send-notification",
         connection="SERVICE_BUS_CONNECTION",
     )
     def send_notification_from_queue(msg: func.ServiceBusMessage):
@@ -126,92 +173,50 @@ def register(app):
         if notification_id is None:
             return
 
-        conn = _db_conn()
         try:
-            # ── Load notification ────────────────────────────────────────────
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(
-                    """
-                    SELECT id, title, body, data, notification_type, status
-                    FROM api_notification WHERE id = %s
-                    """,
-                    (notification_id,),
-                )
-                row = cur.fetchone()
+            row = _api_get_notification(notification_id)
 
             if not row:
                 logging.warning("Notification %s not found.", notification_id)
                 return
 
-            if row["status"] not in ("pending", "failed"):
+            if row.get("status") not in ("pending", "failed"):
                 logging.info(
                     "Notification %s already '%s', skipping.",
-                    notification_id, row["status"],
+                    notification_id,
+                    row.get("status"),
                 )
                 return
 
-            data = row["data"] or {}
-            target_type = data.get("target_type", "ALL").upper()
-            target_filters = data.get("target_filters", {})
+            data = row.get("data") or {}
             title_translations = data.get("title_translations", {})
             body_translations = data.get("body_translations", {})
 
-            # ── Mark as sending ──────────────────────────────────────────────
-            with conn.cursor() as cur:
-                cur.execute(
-                    "UPDATE api_notification SET status='sending' WHERE id = %s",
-                    (notification_id,),
-                )
-            conn.commit()
+            # Keep statuses aligned with Django model choices.
+            _api_patch_notification(notification_id, {"status": "processing"})
 
-            # ── Resolve target devices ───────────────────────────────────────
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                if target_type == "ALL":
-                    cur.execute(
-                        """
-                        SELECT push_token, lang FROM api_device
-                        WHERE is_active = TRUE AND push_token <> ''
-                        """
-                    )
-                elif target_type == "ACCOUNT":
-                    cur.execute(
-                        """
-                        SELECT push_token, lang FROM api_device
-                        WHERE is_active = TRUE AND push_token <> ''
-                          AND account_id = %s
-                        """,
-                        (target_filters.get("account_id"),),
-                    )
-                # elif target_type == "FILTER":
-                    # not implemented. idea is to target user groups, like by company_id from account's person relation
-                else:
-                    logging.error(
-                        "Unknown target_type '%s' for notification %s",
-                        target_type, notification_id,
-                    )
-                    return
-
-                devices = cur.fetchall()
+            devices = _api_get_target_devices(notification_id)
 
             if not devices:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        UPDATE api_notification
-                        SET status='sent', total_devices=0, completed_at=%s
-                        WHERE id = %s
-                        """,
-                        (datetime.now(timezone.utc), notification_id),
-                    )
-                conn.commit()
+                _api_patch_notification(
+                    notification_id,
+                    {
+                        "status": "completed",
+                        "total_devices": 0,
+                        "success_count": 0,
+                        "failure_count": 0,
+                    },
+                )
                 logging.info("Notification %s: no target devices.", notification_id)
                 return
 
-            # ── Group by language and send ───────────────────────────────────
             by_lang: Dict[str, List[str]] = {}
             for device in devices:
-                lang = _normalize_language(device["lang"] or "en")
-                by_lang.setdefault(lang, []).append(device["push_token"])
+                token = device.get("push_token") or device.get("token") or ""
+                if not token:
+                    continue
+                lang = _normalize_language(device.get("lang") or device.get("language") or "en")
+                by_lang.setdefault(lang, []).append(token)
 
             total_sent = 0
             total_failed = 0
@@ -220,51 +225,33 @@ def register(app):
                     lang,
                     title_translations,
                     body_translations,
-                    fallback_title=row["title"],
-                    fallback_body=row["body"],
+                    fallback_title=row.get("title") or "Notification",
+                    fallback_body=row.get("body") or "",
                 )
                 for batch in _chunk(tokens, EXPO_BATCH_SIZE):
                     sent, failed = _send_expo_batch(batch, title, body)
                     total_sent += sent
                     total_failed += failed
 
-            # ── Finalise ─────────────────────────────────────────────────────
-            final_status = "sent" if total_sent > 0 or total_failed == 0 else "failed"
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    UPDATE api_notification
-                    SET status=%s, total_devices=%s, success_count=%s,
-                        failure_count=%s, completed_at=%s
-                    WHERE id = %s
-                    """,
-                    (
-                        final_status,
-                        total_sent + total_failed,
-                        total_sent,
-                        total_failed,
-                        datetime.now(timezone.utc),
-                        notification_id,
-                    ),
-                )
-            conn.commit()
+            final_status = "completed" if total_sent > 0 or total_failed == 0 else "failed"
+            _api_patch_notification(
+                notification_id,
+                {
+                    "status": final_status,
+                    "total_devices": total_sent + total_failed,
+                    "success_count": total_sent,
+                    "failure_count": total_failed,
+                },
+            )
             logging.info(
                 "Notification %s done: status=%s sent=%s failed=%s",
                 notification_id, final_status, total_sent, total_failed,
             )
 
         except Exception:
-            conn.rollback()
             logging.exception("Error processing notification %s", notification_id)
             try:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "UPDATE api_notification SET status='failed' WHERE id = %s",
-                        (notification_id,),
-                    )
-                conn.commit()
+                _api_patch_notification(notification_id, {"status": "failed"})
             except Exception:
                 logging.exception("Failed to mark notification %s as failed", notification_id)
             raise
-        finally:
-            conn.close()
