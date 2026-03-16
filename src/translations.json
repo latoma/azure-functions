@@ -1,0 +1,344 @@
+{
+  "notifications": {
+    "announcement": {
+      "fi": {
+        "title": "Uusi viesti",
+        "body": "Paina avataksesi"
+      },
+      "en": {
+        "title": "New message",
+        "body": "Tap to open"
+      },
+      "sv": {
+        "title": "Nytt meddelande",
+        "body": "Tryck för att öppna"
+      },
+      "et": {
+        "title": "Uus sõnum",
+        "body": "Puudutage avamiseks"
+      },
+      "lv": {
+        "title": "Jauns ziņojums",
+        "body": "Pieskarieties, lai atvērtu"
+      },
+      "pl": {
+        "title": "Nowa wiadomość",
+        "body": "Dotknij, aby otworzyć"
+      },
+      "ru": {
+        "title": "Новое сообщение",
+        "body": "Нажмите, чтобы открыть"
+      },
+      "lt": {
+        "title": "Nauja žinutė",
+        "body": "Palieskite, kad atidarytumėte"
+      },
+      "bg": {
+        "title": "Ново съобщение",
+        "body": "Докоснете, за да отворите"
+      },
+      "uk": {
+        "title": "Нове повідомлення",
+        "body": "Натисніть, щоб відкрити"
+      },
+      "az": {
+        "title": "Yeni mesaj",
+        "body": "Açmaq üçün toxunun"
+      },
+      "sk": {
+        "title": "Nová správa",
+        "body": "Ťuknite na otvorenie"
+      },
+      "sq": {
+        "title": "Mesazh i ri",
+        "body": "Prekni për të hapur"
+      },
+      "sr": {
+        "title": "Нова порука",
+        "body": "Тапните да отворите"
+      }
+    },
+    "poll_activation": {
+      "fi": {
+        "title": "Uusi äänestys on alkanut!",
+        "body": "Käy äänestämässä parasta"
+      },
+      "en": {
+        "title": "A new poll has started!",
+        "body": "Go vote for the best"
+      },
+      "sv": {
+        "title": "En ny omröstning har börjat!",
+        "body": "Gå och rösta på det bästa"
+      },
+      "et": {
+        "title": "Uus küsitlus on alanud!",
+        "body": "Mine hääleta parima poolt"
+      },
+      "lv": {
+        "title": "Jauna aptauja ir sākusies!",
+        "body": "Ej balsot par labāko"
+      },
+      "pl": {
+        "title": "Nowa ankieta się rozpoczęła!",
+        "body": "Idź zagłosować na najlepsze"
+      },
+      "ru": {
+        "title": "Начался новый опрос!",
+        "body": "Идите голосовать за лучшее"
+      },
+      "lt": {
+        "title": "Prasidėjo nauja apklausa!",
+        "body": "Eikite balsuoti už geriausią"
+      },
+      "bg": {
+        "title": "Започна нова анкета!",
+        "body": "Идете да гласувате за най-доброто"
+      },
+      "uk": {
+        "title": "Розпочалося нове опитування!",
+        "body": "Йдіть голосувати за найкраще"
+      },
+      "az": {
+        "title": "Yeni sorğu başladı!",
+        "body": "Ən yaxşısına səs vermək üçün gedin"
+      },
+      "sk": {
+        "title": "Začala sa nová anketa!",
+        "body": "Choďte hlasovať za najlepšie"
+      },
+      "sq": {
+        "title": "Ka filluar një sondazh i ri!",
+        "body": "Shkoni të votoni për më të mirën"
+      },
+      "sr": {
+        "title": "Почела је нова анкета!",
+        "body": "Идите да гласате за најбоље"
+      }
+    },
+    "poll_results": {
+      "fi": {
+        "title": "Äänestys on päättynyt!",
+        "body": "Katso tulokset"
+      },
+      "en": {
+        "title": "The poll has ended!",
+        "body": "See the results"
+      },
+      "sv": {
+        "title": "Omröstningen har avslutats!",
+        "body": "Se resultaten"
+      },
+      "et": {
+        "title": "Küsitlus on lõppenud!",
+        "body": "Vaadake tulemusi"
+      },
+      "lv": {
+        "title": "Aptauja ir beigusies!",
+        "body": "Skatīt rezultātus"
+      },
+      "pl": {
+        "title": "Ankieta się zakończyła!",
+        "body": "Zobacz wyniki"
+      },
+      "ru": {
+        "title": "Опрос завершен!",
+        "body": "Смотрите результаты"
+      },
+      "lt": {
+        "title": "Apklausa baigėsi!",
+        "body": "Peržiūrėkite rezultatus"
+      },
+      "bg": {
+        "title": "Анкетата приключи!",
+        "body": "Вижте резултатите"
+      },
+      "uk": {
+        "title": "Опитування завершено!",
+        "body": "Дивіться результати"
+      },
+      "az": {
+        "title": "Sorğu başa çatdı!",
+        "body": "Nəticələrə baxın"
+      },
+      "sk": {
+        "title": "Anketa sa skončila!",
+        "body": "Pozrite si výsledky"
+      },
+      "sq": {
+        "title": "Sondazhi ka përfunduar!",
+        "body": "Shikoni rezultatet"
+      },
+      "sr": {
+        "title": "Анкета је завршена!",
+        "body": "Погледајте резултате"
+      }
+    },
+    "observation_feedback": {
+      "fi": {
+        "title": "Sait palautteen",
+        "body": "Turvallisuushavaintosi sai palautteen."
+      },
+      "en": {
+        "title": "You received feedback",
+        "body": "Your safety observation received feedback."
+      },
+      "sv": {
+        "title": "Du fick feedback",
+        "body": "Din säkerhetsobservation fick feedback."
+      },
+      "et": {
+        "title": "Saite tagasisidet",
+        "body": "Teie ohutusvaatlus sai tagasisidet."
+      },
+      "lv": {
+        "title": "Jūs saņēmāt atsauksmes",
+        "body": "Jūsu drošības novērojums saņēma atsauksmes."
+      },
+      "pl": {
+        "title": "Otrzymałeś opinię",
+        "body": "Twoja obserwacja bezpieczeństwa otrzymała opinię."
+      },
+      "ru": {
+        "title": "Вы получили отзыв",
+        "body": "Ваше наблюдение за безопасностью получило отзыв."
+      },
+      "lt": {
+        "title": "Gavote atsiliepimą",
+        "body": "Jūsų saugos stebėjimas gavo atsiliepimą."
+      },
+      "bg": {
+        "title": "Получихте обратна връзка",
+        "body": "Вашето наблюдение за безопасност получи обратна връзка."
+      },
+      "uk": {
+        "title": "Ви отримали відгук",
+        "body": "Ваше спостереження щодо безпеки отримало відгук."
+      },
+      "az": {
+        "title": "Rəy aldınız",
+        "body": "Təhlükəsizlik müşahidəniz rəy aldı."
+      },
+      "sk": {
+        "title": "Dostali ste spätnú väzbu",
+        "body": "Vaše bezpečnostné pozorovanie dostalo spätnú väzbu."
+      },
+      "sq": {
+        "title": "Morrët komente",
+        "body": "Vëzhgimi juaj i sigurisë mori komente."
+      },
+      "sr": {
+        "title": "Добили сте повратну информацију",
+        "body": "Ваше посматрање безбедности је добило повратну информацију."
+      }
+    },
+    "observation_feedback_reply_request": {
+      "fi": {
+        "title": "Sait palautteen",
+        "body": "Palautteessa pyydetään lisätietoja"
+      },
+      "en": {
+        "title": "You received feedback",
+        "body": "More information is requested in the feedback."
+      },
+      "sv": {
+        "title": "Du fick feedback",
+        "body": "Mer information efterfrågas i feedbacken."
+      },
+      "et": {
+        "title": "Saite tagasisidet",
+        "body": "Tagasisides küsitakse lisateavet."
+      },
+      "lv": {
+        "title": "Jūs saņēmāt atsauksmes",
+        "body": "Atsauksmēs tiek pieprasīta papildu informācija."
+      },
+      "pl": {
+        "title": "Otrzymałeś opinię",
+        "body": "W opinii poproszono o dodatkowe informacje."
+      },
+      "ru": {
+        "title": "Вы получили отзыв",
+        "body": "В отзыве запрошена дополнительная информация."
+      },
+      "lt": {
+        "title": "Gavote atsiliepimą",
+        "body": "Atsiliepime prašoma papildomos informacijos."
+      },
+      "bg": {
+        "title": "Получихте обратна връзка",
+        "body": "В обратната връзка се изисква допълнителна информация."
+      },
+      "uk": {
+        "title": "Ви отримали відгук",
+        "body": "У відгуку запитано додаткову інформацію."
+      },
+      "az": {
+        "title": "Rəy aldınız",
+        "body": "Rəydə əlavə məlumat tələb olunur."
+      },
+      "sk": {
+        "title": "Dostali ste spätnú väzbu",
+        "body": "V spätnej väzbe sa požadujú ďalšie informácie."
+      },
+      "sq": {
+        "title": "Morrët komente",
+        "body": "Në komente kërkohen më shumë informacione."
+      }
+    },
+    "feedback_replied": {
+      "fi": {
+        "title": "Palautteeseesi on vastattu",
+        "body": "Paina avataksesi"
+      },
+      "en": {
+        "title": "Your feedback received a reply",
+        "body": "Tap to open"
+      },
+      "sv": {
+        "title": "Du har fått svar på din feedback",
+        "body": "Tryck för att öppna"
+      },
+      "et": {
+        "title": "Teie tagasisidele on vastatud",
+        "body": "Puudutage avamiseks"
+      },
+      "lv": {
+        "title": "Jūsu atsauksmei ir sniegta atbilde",
+        "body": "Pieskarieties, lai atvērtu"
+      },
+      "pl": {
+        "title": "Odpowiedziano na Twoją opinię",
+        "body": "Dotknij, aby otworzyć"
+      },
+      "ru": {
+        "title": "На ваш отзыв был дан ответ",
+        "body": "Нажмите, чтобы открыть"
+      },
+      "lt": {
+        "title": "Į jūsų atsiliepimą atsakyta",
+        "body": "Palieskite, kad atidarytumėte"
+      },
+      "bg": {
+        "title": "Получихте отговор на вашата обратна връзка",
+        "body": "Докоснете, за да отворите"
+      },
+      "uk": {
+        "title": "На ваш відгук надано відповідь",
+        "body": "Натисніть, щоб відкрити"
+      },
+      "az": {
+        "title": "Rəyinizə cavab verildi",
+        "body": "Açmaq üçün toxунун"
+      },
+      "sk": {
+        "title": "Na vašu spätnú väzbu bola zaslaná odpoveď",
+        "body": "Ťuknite pre otvorenie"
+      },
+      "sq": {
+        "title": "Ju është përgjigjur feedback-ut tuaj",
+        "body": "Prekni për të hapur"
+      }
+    }
+  }
+}
