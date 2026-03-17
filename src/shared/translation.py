@@ -20,7 +20,7 @@ def translate_document(
         source_blob_url: Full URL to the source blob.
         source_lang: Source language code (e.g. "fi").
         langs: List of target language codes (e.g. ["en", "sv"]).
-        blob_name: Filename of the source document.
+        blob_name: Full blob path (e.g. "discussion/uuid/file.pdf").
 
     Returns:
         Tuple of (documents list, blob_names dict keyed by language code).
@@ -28,14 +28,15 @@ def translate_document(
     endpoint = os.environ["DOCUMENT_TRANSLATOR_ENDPOINT"]
     key = os.environ["TRANSLATOR_KEY"]
 
-    # Parse storage account URL
-    # Example: https://hazardhuntdevstorage.blob.core.windows.net/pdfs/discussion/20260130_185154/file.pdf
+    # Parse storage account URL and extract container
+    # Example: https://hazardhuntdevstorage.blob.core.windows.net/attachments/discussion/<uuid>/file.pdf
     url_parts = source_blob_url.split("/")
     storage_base_url = f"{url_parts[0]}//{url_parts[2]}"
+    container = url_parts[3]
 
-    # Extract container and path parts (everything after storage account)
-    blob_path_parts = url_parts[3:]
-    directory_path = "/".join(blob_path_parts[:-1])
+    blob_parts = blob_name.split("/")
+    filename = blob_parts[-1]
+    directory_path = "/".join(blob_parts[:-1])
 
     client = DocumentTranslationClient(
         endpoint,
@@ -45,7 +46,7 @@ def translate_document(
     # Build translation targets - store in translations subfolder
     targets = [
         TranslationTarget(
-            target_url=f"{storage_base_url}/{directory_path}/translations/{lang}_{blob_name}",
+            target_url=f"{storage_base_url}/{container}/{directory_path}/translations/{lang}_{filename}",
             language=lang,
         )
         for lang in langs
@@ -71,12 +72,8 @@ def translate_document(
 
     for doc in result:
         if doc.status == "Succeeded":
-            translated_url = doc.translated_document_url
             language = doc.translated_to[:2]
-
-            relative_path_parts = blob_path_parts[1:-1]
-            clean_directory_path = "/".join(relative_path_parts)
-            translated_blob_name = f"{clean_directory_path}/translations/{language}_{blob_name}"
+            translated_blob_name = f"{directory_path}/translations/{language}_{filename}"
             blob_names[language] = translated_blob_name
 
             documents.append({
@@ -84,9 +81,9 @@ def translate_document(
                 "language": language,
                 "status": doc.status,
                 "source_url": doc.source_document_url,
-                "translated_url": translated_url,
+                "translated_url": doc.translated_document_url,
             })
-            logging.info(f"Translation succeeded: {translated_url}")
+            logging.info(f"Translation succeeded: {doc.translated_document_url}")
         else:
             documents.append({
                 "id": doc.id,

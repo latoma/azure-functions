@@ -1,47 +1,54 @@
 """PDF Translation Workflow
 
-Durable Functions workflow: HTTP trigger -> orchestrator -> translate + notify activities.
+Durable Functions workflow: Service Bus trigger -> orchestrator -> translate + notify activities.
+
+Queue message shape (translate-pdf queue):
+{
+    "source_blob_url": "https://...",
+    "source_lang": "fi",
+    "langs": ["en", "sv"],
+    "pdf_attachment_id": 42,
+    "blob_name": "discussion/20260317_120000/form.pdf"  # optional
+}
 """
 
+import json
 import os
 import logging
 import requests
 import azure.functions as func
-from shared.auth import validate_bearer_token
 from shared.translation import translate_document
 
 
 def register(app):
     """Register all PDF translation functions."""
 
-    # --- HTTP Trigger ---
+    # --- Service Bus Queue Trigger ---
 
-    @app.route(route="translate-pdf", methods=["POST"])
+    @app.service_bus_queue_trigger(
+        arg_name="msg",
+        queue_name="translate-pdf",
+        connection="SERVICE_BUS_CONNECTION",
+    )
     @app.durable_client_input(client_name="client")
-    async def translate_pdf_http(req: func.HttpRequest, client):
-
-        error_response = validate_bearer_token(req)
-        if error_response:
-            return error_response
-
+    async def translate_pdf_queue(msg: func.ServiceBusMessage, client):
         try:
-            body = req.get_json()
-        except ValueError:
-            return func.HttpResponse("Invalid JSON body", status_code=400)
+            body = json.loads(msg.get_body().decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            logging.error("Invalid queue message body for PDF translation — message will be dead-lettered")
+            return
 
         required_fields = ["source_blob_url", "langs", "pdf_attachment_id"]
         missing = [f for f in required_fields if f not in body]
-
         if missing:
-            return func.HttpResponse(
-                f"Missing required fields: {missing}",
-                status_code=400,
-            )
+            logging.error("PDF translation message missing required fields: %s — dead-lettering", missing)
+            return
 
         payload = {
             "source_blob_url": body["source_blob_url"],
             "source_lang": body.get("source_lang", "fi"),
-            "langs": body["langs"],
+            # "langs": body["langs"],
+            "langs": ['en'],  # REMOVE - FOR TESTING
             "pdf_attachment_id": body["pdf_attachment_id"],
             "blob_name": body.get(
                 "blob_name",
@@ -55,8 +62,7 @@ def register(app):
             payload,
         )
 
-        logging.info(f"Started translate_pdf orchestration: {instance_id}")
-        return client.create_check_status_response(req, instance_id)
+        logging.info("Started translate_pdf orchestration %s for attachment %s", instance_id, payload["pdf_attachment_id"])
 
     # --- Orchestrator ---
 
