@@ -20,6 +20,11 @@ import azure.functions as func
 from shared.translation import translate_document
 
 
+STATUS_COMPLETED = "completed"
+STATUS_FAILED = "failed"
+STATUS_TRANSLATING = "translating"
+
+
 def register(app):
     """Register all PDF translation functions."""
 
@@ -62,6 +67,22 @@ def register(app):
             payload,
         )
 
+        # Mark as actively translating only after orchestration starts successfully.
+        try:
+            response = requests.patch(
+                f"{os.environ['BACKEND_URL']}api/functions/patch-pdf-translations/{payload['pdf_attachment_id']}/",
+                json={"status": STATUS_TRANSLATING},
+                headers={"Authorization": f"Bearer {os.environ['BACKEND_API_KEY']}"},
+                timeout=10,
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            logging.error(
+                "Failed to set translating status for attachment %s: %s",
+                payload["pdf_attachment_id"],
+                e,
+            )
+
         logging.info("Started translate_pdf orchestration %s for attachment %s", instance_id, payload["pdf_attachment_id"])
 
     # --- Orchestrator ---
@@ -78,11 +99,14 @@ def register(app):
         langs = input_data.get("langs", [])
 
         if not langs:
-            return {
+            final_result = {
                 "documents": [],
                 "blob_names": {},
                 "pdf_attachment_id": input_data["pdf_attachment_id"],
+                "status": STATUS_COMPLETED,
             }
+            yield context.call_activity("notify_backend_activity", final_result)
+            return final_result
 
         chunk_size = 10
 
@@ -94,22 +118,35 @@ def register(app):
         all_documents = []
         all_blob_names = {}
 
-        for chunk in lang_chunks:
-            chunk_payload = dict(input_data)
-            chunk_payload["langs"] = chunk
+        try:
+            for chunk in lang_chunks:
+                chunk_payload = dict(input_data)
+                chunk_payload["langs"] = chunk
 
-            result = yield context.call_activity(
-                "translate_pdf_activity",
-                chunk_payload,
+                result = yield context.call_activity(
+                    "translate_pdf_activity",
+                    chunk_payload,
+                )
+
+                all_documents.extend(result.get("documents", []))
+                all_blob_names.update(result.get("blob_names", {}))
+        except Exception as e:
+            yield context.call_activity(
+                "notify_backend_activity",
+                {
+                    "pdf_attachment_id": input_data["pdf_attachment_id"],
+                    "status": STATUS_FAILED,
+                    "error": str(e),
+                    "blob_names": all_blob_names,
+                },
             )
-
-            all_documents.extend(result.get("documents", []))
-            all_blob_names.update(result.get("blob_names", {}))
+            raise
 
         final_result = {
             "documents": all_documents,
             "blob_names": all_blob_names,
             "pdf_attachment_id": input_data["pdf_attachment_id"],
+            "status": STATUS_COMPLETED,
         }
 
         yield context.call_activity(
@@ -145,14 +182,20 @@ def register(app):
 
     @app.activity_trigger(input_name="payload")
     def notify_backend_activity(payload: dict):
-        """Notify the Django backend that translation is complete."""
+        """Notify the Django backend about PDF translation state changes."""
 
         pdf_attachment_id = payload.get("pdf_attachment_id")
+        body = {
+            "status": payload.get("status", STATUS_COMPLETED),
+            "blob_names": payload.get("blob_names", {}),
+        }
+        if "error" in payload:
+            body["error"] = payload.get("error")
 
         try:
             response = requests.patch(
                 f"{os.environ['BACKEND_URL']}api/functions/patch-pdf-translations/{pdf_attachment_id}/",
-                json={"blob_names": payload["blob_names"]},
+                json=body,
                 headers={"Authorization": f"Bearer {os.environ['BACKEND_API_KEY']}"},
                 timeout=10,
             )
