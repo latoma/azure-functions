@@ -52,8 +52,7 @@ def register(app):
         payload = {
             "source_blob_url": body["source_blob_url"],
             "source_lang": body.get("source_lang", "fi"),
-            # "langs": body["langs"],
-            "langs": ['en'],  # REMOVE - FOR TESTING
+            "langs": body["langs"],
             "pdf_attachment_id": body["pdf_attachment_id"],
             "blob_name": body.get(
                 "blob_name",
