@@ -16,5 +16,8 @@ azure-storage-blob>=12.19.0
 # Image processing
 Pillow>=10.0.0
 
+# Azure Identity (Managed Identity / DefaultAzureCredential)
+azure-identity>=1.16.0
+
 # HTTP requests
 requests>=2.31.0

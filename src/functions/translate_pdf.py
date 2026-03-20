@@ -29,7 +29,6 @@ def register(app):
     """Register all PDF translation functions."""
 
     # --- Service Bus Queue Trigger ---
-
     @app.service_bus_queue_trigger(
         arg_name="msg",
         queue_name="translate-pdf",

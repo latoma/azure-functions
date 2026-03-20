@@ -5,7 +5,7 @@ from azure.ai.translation.document import (
     DocumentTranslationInput,
     TranslationTarget,
 )
-from azure.core.credentials import AzureKeyCredential
+from azure.identity import DefaultAzureCredential
 
 
 def translate_document(
@@ -26,7 +26,6 @@ def translate_document(
         Tuple of (documents list, blob_names dict keyed by language code).
     """
     endpoint = os.environ["DOCUMENT_TRANSLATOR_ENDPOINT"]
-    key = os.environ["TRANSLATOR_KEY"]
 
     # Parse storage account URL and extract container
     # Example: https://hazardhuntdevstorage.blob.core.windows.net/attachments/discussion/<uuid>/file.pdf
@@ -40,7 +39,7 @@ def translate_document(
 
     client = DocumentTranslationClient(
         endpoint,
-        AzureKeyCredential(key),
+        DefaultAzureCredential(),
     )
 
     # Build translation targets - store in translations subfolder
