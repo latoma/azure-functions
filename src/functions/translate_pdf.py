@@ -117,15 +117,11 @@ def register(app):
         all_blob_names = {}
 
         try:
-            for chunk in lang_chunks:
-                chunk_payload = dict(input_data)
-                chunk_payload["langs"] = chunk
+            chunk_payloads = [dict(input_data, langs=chunk) for chunk in lang_chunks]
+            tasks = [context.call_activity("translate_pdf_activity", p) for p in chunk_payloads]
+            results = yield context.task_all(tasks)
 
-                result = yield context.call_activity(
-                    "translate_pdf_activity",
-                    chunk_payload,
-                )
-
+            for result in results:
                 all_documents.extend(result.get("documents", []))
                 all_blob_names.update(result.get("blob_names", {}))
         except Exception as e:
